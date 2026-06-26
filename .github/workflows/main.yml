@@ -1,0 +1,36 @@
+name: Castle Info Bot
+
+on:
+  schedule:
+    # يشتغل كل 15 دقيقة طوال اليوم، والكود داخلياً يحدد إذا كنا بضمن وقت العمل (9ص - 11م)
+    - cron: '*/15 * * * *' 
+  workflow_dispatch: # زر التشغيل اليدوي
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Run News Bot
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_TOKEN: ${{ secrets.FB_TOKEN }}
+        run: python script.py
+
+      - name: Save History
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add last_news_id.txt
+          git commit -m "Update news history" || exit 0
+          git push
