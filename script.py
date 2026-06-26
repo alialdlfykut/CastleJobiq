@@ -9,7 +9,7 @@ FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.getenv('FB_TOKEN')
 
 DB_FILE = "last_news_id.txt"
-SOURCE_CHANNEL = 'CastleJobiq'  # القناة المستهدفة بالمراقبة
+SOURCE_CHANNEL = 'CastleInfoiq'  # القناة المستهدفة بالمراقبة
 
 def is_work_time():
     """فحص وقت العمل بتوقيت العراق (UTC+3) من 9 صباحاً إلى 11 مساءً"""
@@ -18,20 +18,21 @@ def is_work_time():
     return 9 <= current_hour <= 23
 
 def clean_news_text(text):
-    """تنظيف المنشور وحذف التوقيع والروابط نهائياً لفيسبوك نظيف"""
+    """يحذف فقط توقيع التليجرام المحدد ويضيف هاشتاق الصفحة في النهاية"""
     if not text:
         return ""
     
-    # 1. حذف التوقيع الصريح (تم إصلاح الـ Regex هنا بوضع \- لحل مشكلة bad character range)
-    text = re.sub(r'اشتـ*رك الآن\s*[:\-\s]*', '', text)
+    # 1. حذف عبارة الاشتراك ورابط قناة CastleJobiq فقط
+    text = re.sub(r'📍\s*للمزيد\s*اشترك\s*معنا:\s*\n?https://t\.me/CastleJobiq', '', text)
     
-    # 2. حذف روابط التليجرام أو أي روابط أخرى لضمان عدم خروج المتابع من الفيسبوك
-    text = re.sub(r'http\S+|t\.me\/\S+|@\S+', '', text)
+    # 2. تنظيف الأسطر الفارغة الزائدة الناتجة عن الحذف
+    text = re.sub(r'\n\s*\n+', '\n\n', text).strip()
     
-    # 3. تنظيف الأسطر الفارغة المتكررة الناتجة عن حذف التوقيع
-    text = re.sub(r'\n\s*\n+', '\n\n', text)
+    # 3. إضافة هاشتاق الصفحة في نهاية المنشور
+    if text:
+        text += "\n\n#قلعة_الوظائف_العراقية"
     
-    return text.strip()
+    return text
 
 def post_to_facebook(message, photo_path=None):
     """نشر النصوص والصور بالطريقة الآمنة (تحميل، رفع كملف، تدمير ذاتي)"""
