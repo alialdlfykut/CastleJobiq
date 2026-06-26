@@ -9,7 +9,7 @@ FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.getenv('FB_TOKEN')
 
 DB_FILE = "last_news_id.txt"
-SOURCE_CHANNEL = 'CastleInfoiq'  # القناة المستهدفة بالمراقبة
+SOURCE_CHANNEL = 'CastleJobiq'  # القناة المستهدفة بالمراقبة
 
 def is_work_time():
     """فحص وقت العمل بتوقيت العراق (UTC+3) من 9 صباحاً إلى 11 مساءً"""
