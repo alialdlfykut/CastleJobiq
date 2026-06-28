@@ -1,2 +1,2 @@
-# CastleInfoiq
+# CastleJobiq
 بوت قلعة المعلومات العامة للنشر ع الفيسبوك 
