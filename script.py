@@ -66,6 +66,13 @@ def main():
         print("🌙 خارج وقت العمل المحدد (9 صباحاً - 11 مساءً بتوقيت العراق). تم إيقاف الدورة لحفظ الجهد.")
         return
 
+    # ♻️ ميزة التصفير التلقائي: فحص وتفريغ ملف التاريخ كل 3 أيام (259200 ثانية)
+    if os.path.exists(DB_FILE):
+        file_age_seconds = time.time() - os.path.getmtime(DB_FILE)
+        if file_age_seconds >= 259200:
+            print("♻️ مر 3 أيام على ملف التاريخ، جاري تنظيفه وتصفيره تلقائياً...")
+            with open(DB_FILE, 'w', encoding='utf-8') as f: f.write("INIT\n")
+
     # إنشاء ملف التاريخ إذا لم يكن موجوداً
     if not os.path.exists(DB_FILE):
         with open(DB_FILE, 'w', encoding='utf-8') as f: f.write("INIT\n")
@@ -97,8 +104,12 @@ def main():
             if not raw_text and not photo_url:
                 continue
             
-            # تحديد البصمة لمنع التكرار
-            sig = raw_text[:80] if raw_text else (photo_url[-80:] if photo_url else "")
+            # 🌟 تحديد البصمة مع استبدال الأسطر الجديدة بمسافات لضمان حفظها كسطر واحد مستقيم ومنع التكرار
+            if raw_text:
+                sig = raw_text[:80].replace('\n', ' ').strip()
+            else:
+                sig = photo_url[-80:] if photo_url else ""
+                
             if not sig or sig in history:
                 continue
             
