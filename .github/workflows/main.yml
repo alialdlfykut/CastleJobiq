@@ -1,9 +1,10 @@
+
 name: Castle Info Bot
 
 on:
   schedule:
-    # يشتغل كل 15 دقيقة طوال اليوم، والكود داخلياً يحدد إذا كنا بضمن وقت العمل (9ص - 11م)
-    - cron: '*/15 * * * *' 
+    # يعمل كل ساعتين من 9 صباحاً إلى 11 ليلاً (الساعة 9، 11، 13، 15، 17، 19، 21، 23)
+    - cron: '0 9-23/2 * * *' 
   workflow_dispatch: # زر التشغيل اليدوي
 
 jobs:
@@ -31,6 +32,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add last_news_id.txt
-          git commit -m "Update news history" || exit 0
+          git add job_history.txt
+          git commit -m "Update job history" || exit 0
           git push
