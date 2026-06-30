@@ -11,11 +11,16 @@ SOURCE_CHANNEL = 'CastleJobiq'
 
 def clean_news_text(text):
     if not text: return ""
-    text = re.sub(r'📍\s*للمزيد\s*اشترك\s*معنا:\s*\n?https://t\.me/CastleJobiq', '', text)
-    return text.strip()
+    # محاولة تنظيف التوقيع، ولكن إذا نتج عن ذلك نص فارغ، سنعيد النص الأصلي
+    cleaned = re.sub(r'📍\s*للمزيد\s*اشترك\s*معنا:\s*\n?https://t\.me/CastleJobiq', '', text).strip()
+    return cleaned if cleaned else text.strip()
 
 def post_to_facebook(message, image_url=None):
     try:
+        if not message or message.strip() == "":
+            print("⚠️ محاولة نشر نص فارغ! تم إلغاء النشر.")
+            return False
+
         if image_url:
             img_data = requests.get(image_url).content
             with open('temp_job_img.jpg', 'wb') as handler: handler.write(img_data)
@@ -40,7 +45,6 @@ def post_to_facebook(message, image_url=None):
 def main():
     if not os.path.exists(DB_FILE): 
         open(DB_FILE, 'w').close()
-        print("📁 تم إنشاء ملف السجل.")
         
     with open(DB_FILE, 'r', encoding='utf-8') as f: 
         history = f.read().splitlines()
@@ -53,29 +57,21 @@ def main():
         print(f"❌ فشل الاتصال بالتليجرام: {e}")
         return
 
-    # التعديل هنا: استخدام regex أكثر مرونة لالتقاط المنشورات
     items = re.findall(r'data-post="[^"\/]+/(\d+)"(.*?)class="tgme_widget_message_text', res.text, re.DOTALL)
     
     if not items:
-        print("⚠️ لم يتم العثور على أي منشورات. قد يكون هناك تحديث في هيكل القناة.")
+        print("⚠️ لم يتم العثور على منشورات. تحقق من اتصال التليجرام.")
         return
 
-    print(f"✅ تم العثور على {len(items)} منشور. جاري الفحص...")
-    
-    new_posts_found = False
-    for msg_id, item in reversed(items[-10:]): # فحص آخر 10 منشورات
-        if msg_id.strip() in history: 
-            continue
+    for msg_id, item in reversed(items[-10:]):
+        if msg_id.strip() in history: continue
         
-        new_posts_found = True
-        print(f"🆕 منشور جديد تم العثور عليه: {msg_id}")
-        
-        # استخراج النص
         msg_match = re.search(r'>(.*?)</div>', item, re.DOTALL)
         raw_text = re.sub(r'<[^>]+>', '', msg_match.group(1).replace('<br/>', '\n').replace('<br>', '\n')).strip() if msg_match else ""
+        
+        # التأكد من أن النص موجود قبل الإرسال
         clean_text = clean_news_text(raw_text)
         
-        # استخراج الصورة
         img_match = re.search(r'background-image:url\(\'([^\']+)\'\)', item)
         img_url = None
         if img_match:
@@ -89,9 +85,6 @@ def main():
             time.sleep(5)
         else:
             print(f"❌ فشل نشر المنشور {msg_id}")
-
-    if not new_posts_found:
-        print("ℹ️ لا توجد منشورات جديدة للنشر.")
 
 if __name__ == "__main__":
     main()
