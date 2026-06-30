@@ -8,7 +8,7 @@ from datetime import datetime
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_TOKEN = os.getenv('FB_TOKEN')
 DB_FILE = "job_history.txt"
-SOURCE_CHANNEL = 'JobsonIraq'
+SOURCE_CHANNEL = 'CastleJobiq'
 
 def clean_news_text(text):
     if not text: return ""
