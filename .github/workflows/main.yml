@@ -1,33 +1,28 @@
-
 name: Castle Info Bot
-
 on:
   schedule:
-    # يعمل كل ساعتين من 9 صباحاً إلى 11 ليلاً (الساعة 9، 11، 13، 15، 17، 19، 21، 23)
-    - cron: '0 9-23/2 * * *' 
+    # يعمل كل ساعتين من 9 صباحاً إلى 11 ليلاً بتوقيت العراق (UTC+3)
+    # 9ص عراقي = 6ص UTC ... 11م عراقي = 8م UTC
+    - cron: '0 6-20/2 * * *'
   workflow_dispatch: # زر التشغيل اليدوي
-
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install Dependencies
         run: pip install requests
-
       - name: Run News Bot
         env:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_TOKEN: ${{ secrets.FB_TOKEN }}
+          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
         run: python script.py
-
       - name: Save History
         run: |
           git config --local user.email "action@github.com"
