@@ -7,21 +7,21 @@ from datetime import datetime
 # --- الإعدادات الأساسية ---
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_TOKEN = os.getenv('FB_TOKEN')
+LINKEDIN_TOKEN = os.getenv('LINKEDIN_TOKEN') # أضف هذا في GitHub Secrets
 DB_FILE = "job_history.txt"
 SOURCE_CHANNEL = 'CastleJobiq'
 
 def clean_news_text(text):
     if not text: return ""
-    # حذف التوقيع المحدد بدقة
     text = re.sub(r'📍\s*للمزيد\s*اشترك\s*معنا:\s*\n?https://t\.me/CastleJobiq', '', text)
     return text.strip()
 
+# --- دالة النشر على فيسبوك ---
 def post_to_facebook(message, image_url=None):
     try:
         if image_url:
             img_data = requests.get(image_url).content
             with open('temp_job_img.jpg', 'wb') as handler: handler.write(img_data)
-            
             url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/photos"
             files = {'source': open('temp_job_img.jpg', 'rb')}
             payload = {'caption': message, 'access_token': FB_TOKEN}
@@ -30,10 +30,38 @@ def post_to_facebook(message, image_url=None):
             url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/feed"
             payload = {'message': message, 'access_token': FB_TOKEN}
             r = requests.post(url, data=payload, timeout=15)
-            
         return r.status_code == 200
     except Exception as e:
-        print(f"⚠️ خطأ في النشر: {e}")
+        print(f"⚠️ خطأ في فيسبوك: {e}")
+        return False
+
+# --- دالة النشر على لينكد إن ---
+def post_to_linkedin(message):
+    try:
+        headers = {
+            "Authorization": f"Bearer {LINKEDIN_TOKEN}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0"
+        }
+        # جلب URN الخاص بك
+        user_data = requests.get("https://api.linkedin.com/v2/me", headers=headers).json()
+        user_urn = user_data["id"]
+        
+        payload = {
+            "author": f"urn:li:person:{user_urn}",
+            "lifecycleState": "PUBLISHED",
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {"text": message},
+                    "shareMediaCategory": "NONE"
+                }
+            },
+            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+        }
+        r = requests.post("https://api.linkedin.com/v2/ugcPosts", headers=headers, json=payload)
+        return r.status_code == 201
+    except Exception as e:
+        print(f"⚠️ خطأ في لينكد إن: {e}")
         return False
 
 def main():
@@ -53,14 +81,14 @@ def main():
         clean_text = clean_news_text(raw_text)
         
         img_match = re.search(r'background-image:url\(\'([^\']+)\'\)', item)
-        img_url = None
-        if img_match:
-            temp_url = img_match.group(1)
-            if 'telegram.org/img/emoji/' not in temp_url:
-                img_url = 'https:' + temp_url if temp_url.startswith('//') else temp_url
+        img_url = 'https:' + img_match.group(1) if img_match and 'telegram.org/img/emoji/' not in img_match.group(1) else None
         
-        if post_to_facebook(clean_text, img_url):
-            print(f"✅ تم نشر المنشور {msg_id}")
+        # التنفيذ المتوازي
+        fb_success = post_to_facebook(clean_text, img_url)
+        li_success = post_to_linkedin(clean_text)
+        
+        if fb_success or li_success:
+            print(f"✅ تم معالجة المنشور {msg_id} (FB: {fb_success}, LI: {li_success})")
             with open(DB_FILE, 'a', encoding='utf-8') as f: f.write(msg_id + "\n")
             time.sleep(5)
 
