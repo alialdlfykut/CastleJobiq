@@ -7,8 +7,6 @@ from datetime import datetime
 # --- الإعدادات الأساسية ---
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_TOKEN = os.getenv('FB_TOKEN')
-LINKEDIN_TOKEN = os.getenv('LINKEDIN_TOKEN')
-LINKEDIN_URN = os.getenv('LINKEDIN_URN')  # اختياري: إذا مو موجود، نجيبه تلقائياً من /v2/userinfo
 DB_FILE = "job_history.txt"
 SOURCE_CHANNEL = 'CastleJobiq'
 
@@ -28,8 +26,6 @@ def check_env_vars():
     if missing:
         print(f"🚨 متغيرات بيئة ناقصة: {', '.join(missing)} — تأكد من GitHub Secrets.")
         return False
-    if not LINKEDIN_TOKEN:
-        print("ℹ️ LINKEDIN_TOKEN غير موجود — بيتم تخطي النشر على لينكدإن (فيسبوك بس راح يشتغل).")
     return True
 
 
@@ -72,65 +68,9 @@ def post_to_facebook(message, image_url=None):
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
+                print(f"🗑️ تم حذف الصورة المؤقتة ({temp_path}) بعد الاستخدام.")
             except Exception as cleanup_err:
                 print(f"⚠️ ماكدرت أحذف الصورة المؤقتة: {cleanup_err}")
-
-
-# --- دوال النشر على لينكدإن (Posts API الجديد + OpenID userinfo) ---
-def get_linkedin_urn(headers):
-    """/v2/me صارت مقيدة الصلاحيات؛ /v2/userinfo هو البديل الحديث (OpenID Connect)"""
-    try:
-        r = requests.get("https://api.linkedin.com/v2/userinfo", headers=headers, timeout=15)
-        if r.status_code == 200:
-            sub = r.json().get("sub")
-            print(f"ℹ️ تم جلب LinkedIn URN تلقائياً: {sub}")
-            return sub
-        else:
-            print(f"❌ فشل جلب /v2/userinfo — status: {r.status_code} — الرد: {r.text}")
-            return None
-    except Exception as e:
-        print(f"⚠️ استثناء أثناء جلب LinkedIn userinfo: {e}")
-        return None
-
-
-def post_to_linkedin(message):
-    try:
-        headers = {
-            "Authorization": f"Bearer {LINKEDIN_TOKEN}",
-            "Content-Type": "application/json",
-            "X-Restli-Protocol-Version": "2.0.0",
-            "LinkedIn-Version": "202405",
-        }
-
-        urn = LINKEDIN_URN or get_linkedin_urn(headers)
-        if not urn:
-            print("🚨 ماكدر أجيب LinkedIn URN — تأكد إن التوكن عنده صلاحية openid/profile، أو خزن LINKEDIN_URN يدوياً بالـ Secrets.")
-            return False
-
-        # Posts API الجديد (/rest/posts) بدل ugcPosts القديم المهجور
-        payload = {
-            "author": f"urn:li:person:{urn}",
-            "commentary": message,
-            "visibility": "PUBLIC",
-            "distribution": {
-                "feedDistribution": "MAIN_FEED",
-                "targetEntities": [],
-                "thirdPartyDistributionChannels": []
-            },
-            "lifecycleState": "PUBLISHED",
-            "isReshareDisabledByAuthor": False
-        }
-        r = requests.post("https://api.linkedin.com/rest/posts", headers=headers, json=payload, timeout=15)
-
-        if r.status_code == 201:
-            print(f"✅ لينكدإن: نُشر بنجاح — post id: {r.headers.get('x-restli-id', 'غير معروف')}")
-            return True
-        else:
-            print(f"❌ لينكدإن رفض النشر — status: {r.status_code} — الرد: {r.text}")
-            return False
-    except Exception as e:
-        print(f"⚠️ استثناء أثناء النشر على لينكدإن: {e}")
-        return False
 
 
 def main():
@@ -152,8 +92,10 @@ def main():
         print("🚨 ماكو منشورات انكشفت من صفحة تليجرام! غالباً بنية الـ HTML تغيرت — راجع الـ regex.")
         return
 
+    skipped_count = 0
     for msg_id, item in reversed(items[-5:]):
         if msg_id.strip() in history:
+            skipped_count += 1
             continue
 
         msg_match = re.search(r'class="tgme_widget_message_text[^>]*>(.*?)</div>', item, re.DOTALL)
@@ -169,15 +111,17 @@ def main():
 
         print(f"🔄 معالجة المنشور {msg_id}...")
         fb_success = post_to_facebook(clean_text, img_url)
-        li_success = post_to_linkedin(clean_text) if LINKEDIN_TOKEN else False
 
-        if fb_success or li_success:
-            print(f"📌 تم معالجة المنشور {msg_id} (FB: {fb_success}, LI: {li_success})")
+        if fb_success:
+            print(f"📌 تم نشر المنشور {msg_id} على فيسبوك بنجاح")
             with open(DB_FILE, 'a', encoding='utf-8') as f:
                 f.write(msg_id + "\n")
             time.sleep(5)
         else:
-            print(f"⏭️ فشل النشر بكلا المنصتين للمنشور {msg_id} — بيبقى بالسجل عشان يعاد المحاولة بالتشغيلة الجاية.")
+            print(f"⏭️ فشل النشر على فيسبوك للمنشور {msg_id} — بيبقى بالسجل عشان يعاد المحاولة بالتشغيلة الجاية.")
+
+    if skipped_count == len(items[-5:]):
+        print(f"ℹ️ آخر {skipped_count} منشور موجودين مسبقاً بـ {DB_FILE} — ماكو شي جديد للنشر بهاي التشغيلة.")
 
 
 if __name__ == "__main__":
