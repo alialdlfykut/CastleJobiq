@@ -21,7 +21,6 @@ jobs:
         env:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_TOKEN: ${{ secrets.FB_TOKEN }}
-          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
         run: python script.py
       - name: Save History
         run: |
