@@ -8,7 +8,7 @@ from datetime import datetime
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_TOKEN = os.getenv('FB_TOKEN')
 LINKEDIN_TOKEN = os.getenv('LINKEDIN_TOKEN')
-LINKEDIN_URN = os.getenv('LINKEDIN_URN')  # اختياري: إذا مو موجود، نجيبه من /v2/userinfo
+LINKEDIN_URN = os.getenv('LINKEDIN_URN')  # اختياري: إذا مو موجود، نجيبه تلقائياً من /v2/userinfo
 DB_FILE = "job_history.txt"
 SOURCE_CHANNEL = 'CastleJobiq'
 
@@ -25,10 +25,11 @@ def check_env_vars():
     missing = []
     if not FB_PAGE_ID: missing.append('FB_PAGE_ID')
     if not FB_TOKEN: missing.append('FB_TOKEN')
-    if not LINKEDIN_TOKEN: missing.append('LINKEDIN_TOKEN')
     if missing:
         print(f"🚨 متغيرات بيئة ناقصة: {', '.join(missing)} — تأكد من GitHub Secrets.")
         return False
+    if not LINKEDIN_TOKEN:
+        print("ℹ️ LINKEDIN_TOKEN غير موجود — بيتم تخطي النشر على لينكدإن (فيسبوك بس راح يشتغل).")
     return True
 
 
@@ -75,7 +76,7 @@ def post_to_facebook(message, image_url=None):
                 print(f"⚠️ ماكدرت أحذف الصورة المؤقتة: {cleanup_err}")
 
 
-# --- دالة النشر على لينكد إن (Posts API الجديد + OpenID userinfo) ---
+# --- دوال النشر على لينكدإن (Posts API الجديد + OpenID userinfo) ---
 def get_linkedin_urn(headers):
     """/v2/me صارت مقيدة الصلاحيات؛ /v2/userinfo هو البديل الحديث (OpenID Connect)"""
     try:
@@ -119,8 +120,7 @@ def post_to_linkedin(message):
             "lifecycleState": "PUBLISHED",
             "isReshareDisabledByAuthor": False
         }
-        rest_headers = dict(headers)
-        r = requests.post("https://api.linkedin.com/rest/posts", headers=rest_headers, json=payload, timeout=15)
+        r = requests.post("https://api.linkedin.com/rest/posts", headers=headers, json=payload, timeout=15)
 
         if r.status_code == 201:
             print(f"✅ لينكدإن: نُشر بنجاح — post id: {r.headers.get('x-restli-id', 'غير معروف')}")
@@ -169,7 +169,7 @@ def main():
 
         print(f"🔄 معالجة المنشور {msg_id}...")
         fb_success = post_to_facebook(clean_text, img_url)
-        li_success = post_to_linkedin(clean_text)
+        li_success = post_to_linkedin(clean_text) if LINKEDIN_TOKEN else False
 
         if fb_success or li_success:
             print(f"📌 تم معالجة المنشور {msg_id} (FB: {fb_success}, LI: {li_success})")
