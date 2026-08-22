@@ -15,12 +15,19 @@ def clean_news_text(text):
     if not text:
         return ""
 
-    # حذف فقرة الاشتراك برابط قناة CastleJobiq فقط
+    # حذف فقرة الاشتراك بقناة الوظائف فقط، سواء كان الرابط نصاً عادياً
+    # أو كان قادماً من Telegram بصيغة Markdown/HTML.
     text = re.sub(
-        r'\s*للمزيد من الوظائف اشترك معنا:\s*\n*\s*\[\*\*https://t\.me/CastleJobiq\*\*\]\(https://t\.me/CastleJobiq\)\s*',
+        r'(?is)\s*للمزيد\s*من\s*الوظائف\s*اشترك\s*معنا\s*:\s*(?:\n\s*)*(?:\[\*\*https?://t\.me/CastleJobiq\*\*\]\(https?://t\.me/CastleJobiq\)|https?://t\.me/CastleJobiq)\s*',
         '',
         text,
-        flags=re.IGNORECASE
+    )
+
+    # احتياطياً: إذا بقيت صيغة HTML للرابط بعد استخراج النص.
+    text = re.sub(
+        r'(?is)\s*للمزيد\s*من\s*الوظائف\s*اشترك\s*معنا\s*:\s*(?:\n\s*)*<a[^>]*href=[\"\']https?://t\.me/CastleJobiq[\"\'][^>]*>.*?</a>\s*',
+        '',
+        text,
     )
 
     return text.strip()
