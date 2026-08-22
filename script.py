@@ -14,7 +14,15 @@ SOURCE_CHANNEL = 'CastleJobiq'
 def clean_news_text(text):
     if not text:
         return ""
-    text = re.sub(r'📍\s*للمزيد\s*اشترك\s*معنا:\s*\n?https://t\.me/CastleJobiq', '', text)
+
+    # حذف فقرة الاشتراك برابط قناة CastleJobiq فقط
+    text = re.sub(
+        r'\s*للمزيد من الوظائف اشترك معنا:\s*\n*\s*\[\*\*https://t\.me/CastleJobiq\*\*\]\(https://t\.me/CastleJobiq\)\s*',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
     return text.strip()
 
 
